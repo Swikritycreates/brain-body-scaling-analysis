@@ -27,3 +27,5 @@ This project analyzes the relationship between brain weight and body weight acro
 R
 ggplot2, dplyr, broom, performance, equatiomatic
 Quarto (.qmd)
+
+[View Analysis](https://swikritycreates.github.io/brain-body-scaling-analysis)
