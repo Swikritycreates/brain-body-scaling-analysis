@@ -1,0 +1,148 @@
+---
+title: "Beastly Bodies and Brain"
+author: "Swikriti Dumre"
+format:
+  html:
+    embed-resources: true
+---
+
+```{r}
+#| echo: false
+#| warning: false
+library(broom) 
+library(dplyr)
+library(ggplot2)
+library(performance)
+library(equatiomatic)
+brainbody_data <- read.csv("Mammal Brain and Body Weight - body_brain.csv")
+```
+
+## Topic and Origin 
+
+In the animal kingdom, bigger means stronger but not necessarily smarter. This case study attempts to answer the following questions: 
+
+- What is a plausible range of values for the coefficient that relates change in body weight to a corresponding change in brain weight?
+- Should humans be considered an outlier of the general brain vs. body weight relationship?
+
+This data set is derived from [Tartarelli and Bisconti (2006)](https://bit.ly/mammal-brain-body) aggregated data. 
+
+## Data Wrangling 
+
+```{r}
+#| echo: false
+brainbody_data_filtered <-brainbody_data |>
+  filter(Body_weight_kg >0 & Brain_weight_g > 0)
+```
+
+We are filtering the data where the brain or body weight is less than or equal to 0 because in real life, if the mass is 0 or less, then the animal likely would not exist. Additionally, it is an ideal decision mathematically because we will be performing log transformation for this data, which might deviate the results if 0 is used as a data.
+
+
+## Checking LINE assumption for regular Linear Regression Model 
+
+```{r}
+#| echo: false
+linear_model <- lm(Brain_weight_g ~ Body_weight_kg, data = brainbody_data_filtered)
+check_model(linear_model, check = c("linearity", "homogeneity", "qq"))
+```
+
+From this observation, we can say that normality is heavily right skewed. Therefore, the results achieved from a regular linear regression model would not be satisfactor as it does not follow LINE assumption.x
+
+## Transforming & Fitting Regression Model for Mammal Brain Body Data
+
+In order to satisfy the LINE assumption, we will be transforming our variables using log transformation.
+
+```{r}
+#| warning: false
+#| echo: false
+brainbody_model <- lm(log(Brain_weight_g) ~ log(Body_weight_kg), data = brainbody_data_filtered)
+summary(brainbody_model)$coefficients
+```
+
+Now, let us re-check the LINE assumption.
+
+```{r}
+#| warning: false
+#| echo: false
+library(performance)
+check_model(brainbody_model, check = c("linearity", "homogeneity", "qq"))
+```
+
+After the transformation, we can see an acceptable linearity, variance and normality throughout the data. Likewise, as these data were collected across different species, we can safely assume Independence and take this fitted model into account. 
+
+The fitted model obtained after performing log transformation is given by:
+
+```{r}
+#| echo: false
+extract_eq(brainbody_model, use_coefs = TRUE)
+```
+
+From this model, we can infer that 1% increase in body weight is associated with approximately a 0.67% increase in brain weight.
+
+### Conversion to regular units 
+
+$$\widehat{Brain\_weight\_g} = e^{2.19653} * Body\_weight\_kg^{0.67309}$$
+After mathematical calculation, we get the final equation as:
+
+$$\widehat{Brain\_weight\_g} = 8.99 * Body\_weight\_kg^{0.67309}$$
+From this equation, we can interpret that Brain weight scales according to a power-law relationship:
+$\text{Brain∝Body}^{0.67}$. Alongside, we also take consideration of the fact that as Body_weight_kg increases, the growth rate of brain reduces as the exponential of Body_weight_kg is less than 1. 
+
+### Visualization after the Transformation 
+
+```{r}
+#| warning: false
+#| echo: false
+ggplot(brainbody_data, aes(x = Body_weight_kg, y = Brain_weight_g)) +
+  geom_point() +
+  geom_smooth(method=lm, se=FALSE, formula=y~x) +
+  scale_x_continuous(trans = "log") +
+  scale_y_continuous(trans = "log")
+```
+
+
+### Calculating the confidence interval for the slope of the data
+```{r}
+#| echo: false
+confint(brainbody_model)
+```
+
+The plausible range of values for the coefficient that relates change in body weight to a corresponding change in brain weight is  0.624695 to 0.7214943. This means that for each 1% increase in Body_weight_g in a mammal, their expected Brain_weight_g is predicted to experience a growth rate between 0.62% to 0.72%.
+
+## Analysis of the data in relation to human 
+
+From the regression table, we can calculate the estimated brain weight in grams for an evaluated body weight. 
+
+$$\widehat{brain\_weight_g} =8.99 * Body\_weight\_kg^{0.67309}$$
+$$\widehat{brain\_weight_g} = 	8.99 * 62^{0.67309} = 144.61 $$
+
+From the calculation, we can say that the predicted brain_weight_g is different from the brain_weight_g given in our data. To see the actual difference, we calculate the residual: 
+
+$$ Residual = brain\_weight\_g - \widehat{brain\_weight_g} $$
+$$ Residual =  1320.00 - 144.61 =  1175.39 $$
+
+As we can observe that the residual for human brain is really high, we can say that humans should be considered an outlier of the general brain vs. body weight relationship. To confirm, we visualize pinpoint the human data in the confidence interval of our fitted transformed model.  
+
+
+```{r}
+#| warning: false
+#| echo: false
+ggplot(data = brainbody_data,
+       mapping = aes(x = Body_weight_kg, y = Brain_weight_g)
+       ) +
+  geom_point() +
+  geom_smooth(method = lm, formula = y~x)+
+  scale_x_continuous(trans = "log") +
+  scale_y_continuous(trans = "log") +
+  geom_point( data = filter(brainbody_data, Species == "Human"),
+    color = "red",
+    size = 3
+  )
+```
+
+According to this visualization, we can also see that humans (represented by red dot) lie away from the range of confidence interval. 
+
+## Conclusion
+
+Therefore, according to this report, the plausible range of values for the coefficient that relates change in body weight to a corresponding change in brain weight lies between 0.624695 to 0.7214943.The human brain weight is substantially larger than predicted by the model, indicating humans are a strong positive outlier relative to the general mammalian scaling trend. This could be because of various reasons including evolution and timelines of development. These data help us establish that bigger body doesn't necesarily mean bigger brain, smartness might be more of a neurological research question that can be explored further through other research data. 
+
+
